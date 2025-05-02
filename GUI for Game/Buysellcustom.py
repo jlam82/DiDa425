@@ -118,6 +118,8 @@ input_box     = pygame.Rect(50, SCREEN_HEIGHT - 60, 200, 40)
 # Buttons
 from button import Button
 
+
+
 invest_btns = {}
 sell_btns   = {}
 for i, name in enumerate(COMPANIES):
