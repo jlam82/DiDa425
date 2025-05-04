@@ -9,14 +9,29 @@ import yfinance as yf
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib import font_manager
+from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 # ------------------ LOAD CSV DATA ------------------
-csv_df = pd.read_csv(
-    "Nintendo Annual CSV - Sheet1.csv",
-    index_col=0,
-    thousands=","
-)
-csv_df.columns = pd.to_datetime(csv_df.columns, format="%Y-%m-%d")
+# at the top, replace your single csv_df load with:
+
+csv_dfs = {
+    "Nintendo": pd.read_csv(
+        "Nintendo Annual CSV - Sheet1.csv",
+        index_col=0, thousands=","
+    ),
+    "TakeTwo": pd.read_csv(
+        "Take Two Annual Data - Sheet1.csv",
+        index_col=0, thousands=","
+    ),
+    "EA": pd.read_csv(
+        "EA Annual CSV - Sheet1.csv",
+        index_col=0, thousands=","
+    ),
+}
+# turn every DataFrame’s columns into timestamps
+for df in csv_dfs.values():
+    df.columns = pd.to_datetime(df.columns, format="%Y-%m-%d")
+
 
 # ------------------ SETTINGS ------------------
 SCREEN_WIDTH, SCREEN_HEIGHT = 1280, 720
@@ -25,7 +40,7 @@ FPS = 30
 FONT_PATH  = "assets/font.ttf"
 BG_IMAGE   = "assets/Background.png"
 COMPANIES  = {"Nintendo": "NTDOY", "TakeTwo": "TTWO", "EA": "EA"}
-START_YEAR = 2000
+START_YEAR = 2002
 START_CASH = 10000
 
 # ------------------ CHART FUNCTIONS ------------------
@@ -151,6 +166,8 @@ def create_portfolio_chart(df_daily, shares, years, idx, size, font_path):
     start = cutoff - pd.DateOffset(years = 5)
     df_sub = df_daily[(df_daily.index >= start) & (df_daily.index <= cutoff)]
 
+
+    
     # build portfolio time series
     port_values = pd.Series(0.0, index=df_sub.index)
     for comp_name, num_shares in shares.items():
@@ -183,6 +200,14 @@ def create_portfolio_chart(df_daily, shares, years, idx, size, font_path):
         label.set_fontproperties(prop)
         label.set_color("white")   # keep them white, if you like
 
+
+    def y_fmt(x, pos):
+        x = int(x)
+        if abs(x) >= 1000:
+            return f"{x//1000}k"
+        return str(x)
+
+    ax.yaxis.set_major_formatter(FuncFormatter(y_fmt))
     # axis labels
     ax.set_xlabel("Date", fontproperties=prop, color="white")
     ax.set_ylabel("Portfolio Value (USD)", fontproperties=prop, color="white")
@@ -233,16 +258,21 @@ df_daily = yf.download(
     end=today,
 )["Close"]
 df_daily.index = pd.to_datetime(df_daily.index)
-chart_size = (SCREEN_WIDTH - 400, 400)
+chart_size = (700, 400)
 year_idx = 0
 
 # ------------------ GAME STATE ------------------
 state         = "MENU"
 cash          = START_CASH
 shares        = {n: 0.0 for n in COMPANIES}
+# net cash you’ve put into each stock (buys add, sells subtract)
+invested = {name: 0.0 for name in COMPANIES}
+totalinvested = {name: 0.0 for name in COMPANIES}
+sold= {name: 0.0 for name in COMPANIES}
+
 active_action = None      # ("invest"|"sell", company_name)
 input_str     = ""
-input_box     = pygame.Rect(50, SCREEN_HEIGHT - 60, 200, 40)
+input_box     = pygame.Rect(50, 500, 200, 40)
 
 popup_msg   = None
 popup_rect  = None
@@ -270,14 +300,14 @@ active_tab = all_tabs[0]
 invest_btns = {}
 sell_btns   = {}
 for i, name in enumerate(COMPANIES):
-    x_off = 400
+    x_off = 200
     invest_btns[name] = Button(None, (x_off, SCREEN_HEIGHT - 70),
                                f"BUY", pixel_font(30), "White", "Green")
     sell_btns[name] = Button(None, (x_off+300, SCREEN_HEIGHT - 70),
                              f"SELL", pixel_font(30), "White", "Green")
 
-next_year_btn = Button(None, (SCREEN_WIDTH - 200, SCREEN_HEIGHT - 605),
-                       "Next Year", pixel_font(24), "White", "Green")
+next_year_btn = Button(None, (SCREEN_WIDTH - 180, 40),
+                       "Next Year", pixel_font(25), "White", "Green")
 
 play_btn = Button(pygame.image.load("assets/Play Rect.png"),
                   (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50),
@@ -342,6 +372,33 @@ def draw_game():
         small_surf  = pixel_font(24).render(change_text, True, color)
         screen.blit(small_surf, (50, 120 + price_surf.get_height() + 5))
 
+        # — Total return since you started buying this stock —
+        # — Combined Total Return line —
+        cost_basis     = totalinvested[comp]
+        total_sold = sold[comp]
+        position_value = shares[comp] * current_price
+        total_ret      =(total_sold+position_value) - cost_basis
+        pct_ret        = (total_ret / cost_basis * 100) if cost_basis else 0
+
+        tr_font = pixel_font(16)
+        sign    = "+" if total_ret >= 0 else ""
+        tr_text = f"Total Return: "
+        tr_surf = tr_font.render(tr_text, True, "#ffffff")
+
+        # position it just below your YTD line
+        tx = 440
+        ty = 700
+        screen.blit(tr_surf, (tx, ty))
+
+
+        # render percent return
+        pr_sign  = "+" if pct_ret >= 0 else ""
+        pr_text  = f"{sign}${total_ret:,.2f} ({sign}{pct_ret:.2f}%)"
+        pr_color = "#00c853" if pct_ret >= 0 else "#d32f2f"
+        pr_surf  = tr_font.render(pr_text, True, pr_color)
+        screen.blit(pr_surf, (tx + tr_surf.get_width() + 20, ty))
+
+
         # ── Then draw the chart a bit lower ───────────────────────────────────
         chart_y = 120 + price_surf.get_height() + small_surf.get_height() + 20
         chart   = create_chart(df_daily[[ticker]], years, year_idx, chart_size, FONT_PATH)
@@ -349,23 +406,28 @@ def draw_game():
 
 
         # CSV metrics (as before)
+        # CSV metrics for the selected company
+        df = csv_dfs[comp]                    # df is the right DataFrame
         year = years[year_idx]
-        matching = [c for c in csv_df.columns if c.year == year]
+        matching = [c for c in df.columns if c.year == year]
         if matching:
             col = matching[0]
-            net_income     = csv_df.loc["Net Income/Net Profit\n(Losses)", col]
-            revenue        = csv_df.loc["Revenue", col]
-            dividends_paid = csv_df.loc["Dividends Paid", col]
-            eps            = csv_df.loc["Basic Earnings per Share", col]
+            net_income     = df.loc["Net Income/Net Profit\n(Losses)", col]
+            revenue        = df.loc["Revenue", col]
+            TotalEquity = df.loc["Total Equity", col]
+            ProfitMargin = df.loc["Profit Margin", col]
+            eps            = df.loc["Basic Earnings per Share", col]
             lines = [
                 f"Net Income:  ${net_income:,.2f}M",
                 f"Revenue:     ${revenue:,.2f}M",
-                f"Dividends:   ${dividends_paid:,.2f}M",
+                f"Tot. Equity: ${TotalEquity:,.2f}M",
+                f"PM:          {ProfitMargin:,.2f}%",
                 f"EPS:         {eps:,.2f}"
             ]
             for i, text in enumerate(lines):
-                surf = pixel_font(14).render(text, True, "#ffffff")
-                screen.blit(surf, (940, 180 + i * 30))
+                surf = pixel_font(20).render(text, True, "#ffffff")
+                screen.blit(surf, (780, 220 + i*30))
+
 
         # shares & buttons for this company
         pf = pixel_font(20)
@@ -517,6 +579,8 @@ while True:
                             popup_msg = f"Not enough cash: need ${cost:,.2f}."
                         else:
                             shares[comp] += desired_shares
+                            totalinvested[comp] += cost
+                            invested[comp] += cost
                             cash      -= cost
                             popup_msg = f"Bought {desired_shares} share(s) of {comp} for ${cost:,.2f}!"
                     else:  # sell
@@ -526,6 +590,8 @@ while True:
                         else:
                             proceeds      = sell_shares * price
                             shares[comp] -= sell_shares
+                            invested[comp] -= proceeds
+                            sold[comp]   += proceeds
                             cash         += proceeds
                             popup_msg     = f"Sold {sell_shares} share(s) of {comp} for ${proceeds:,.2f}!"
 
