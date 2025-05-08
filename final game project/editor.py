@@ -4,25 +4,22 @@ import pygame
 from scripts.utils import load_images # some imports were not needed
 from scripts.tilemap import Tilemap
 
-RENDER_SCALE = 2.0 # render scale to determine how much to multiply the pixels
+RENDER_SCALE = 2.2 # render scale to determine how much to multiply the pixels
 
 class Editor:
     def __init__(self):
         pygame.init()
         
         pygame.display.set_caption("editor") # change the name
-        self.screen = pygame.display.set_mode((640, 480))
-        self.display = pygame.Surface((320, 240))
+        self.screen = pygame.display.set_mode((1280, 960))
+        self.display = pygame.Surface((640, 480))
 
         self.clock = pygame.time.Clock()
  
         self.assets = { # trim this down
-            "floor": load_images("")
-
-            "decor": load_images("tiles/decor"),
-            "grass": load_images("tiles/grass"),
-            "large_decor": load_images("tiles/large_decor"),
-            "stone": load_images("tiles/stone"),
+            "floor": load_images("Floor 64px"),
+            "wall": load_images("Wall 64px"),
+            "bed": load_images("Bed")
         }
 
         self.movement = [False, False, False, False] # you'd still want to keep this so you can move your camera around
@@ -97,7 +94,7 @@ class Editor:
             
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    pygame.quit() 
+                    pygame.quit()
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN: # new event type; can trigger on scroll wheel too
                     if event.button == 1:
@@ -110,7 +107,7 @@ class Editor:
                         if event.button == 4: # scroll up
                             self.tile_variant = (self.tile_variant - 1) % len(self.assets[self.tile_list[self.tile_group]]) # this will give us the number of variants
                         if event.button == 5: # scroll down
-                            self.tile_variant = (self.tile_variant + 1) % len(self.assets[self.tile_list[self.tile_group]]) 
+                            self.tile_variant = (self.tile_variant + 1) % len(self.assets[self.tile_list[self.tile_group]])
                     else:
                         if event.button == 4: # scroll up
                             self.tile_group = (self.tile_group - 1) % len(self.tile_list) # again getting something to loop via modulo
