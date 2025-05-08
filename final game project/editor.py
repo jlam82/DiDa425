@@ -17,7 +17,9 @@ class Editor:
         self.clock = pygame.time.Clock()
  
         self.assets = { # trim this down
-            "floor": load_images("Floor 64px")
+            "floor": load_images("Floor 64px"),
+            "wall": load_images("Wall 64px"),
+            "bed": load_images("Bed")
         }
 
         self.movement = [False, False, False, False] # you'd still want to keep this so you can move your camera around
