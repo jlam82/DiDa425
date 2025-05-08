@@ -230,7 +230,7 @@ def draw_game():
         btn.changeColor(m); btn.update(screen)
 
     # header
-    screen.blit(pixel_font(25).render(f"Year: {years[year_idx]}", True, "#b68f40"), (700, 30))
+    screen.blit(pixel_font(25).render(f"Year: {years[year_idx]}", True, "#b68f40"), (700,       30))
     screen.blit(pixel_font(25).render(f"Cash: ${cash:,.0f}", True, "#ffffff"),  (250, 30))
 
     if active_tab in COMPANIES:
@@ -447,7 +447,35 @@ while True:
 
         # ── GAME Input & other clicks ───────────────────────────────
         else:
-            # Typing input for BUY/SELL
+            # ── News Button Click ─────────────────────────────────────────
+            if e.type == pygame.MOUSEBUTTONDOWN and active_tab in COMPANIES:
+                if news_btn.checkForInput(mpos):
+                    all_lines = [news_headline] + textwrap.wrap(news_body or "", width=40)
+                    headline_font = pygame.font.Font(FONT_PATH, 24)
+                    headline_font.set_underline(True)
+                    body_font     = pygame.font.Font(FONT_PATH, 24)
+                    lh = headline_font.get_linesize()
+                    if len(all_lines) > 1:
+                        widths = [headline_font.size(all_lines[0])[0]] + \
+                                 [body_font.size(ln)[0] for ln in all_lines[1:]]
+                        w_popup = max(widths) + 20
+                    else:
+                        w_popup = headline_font.size(all_lines[0])[0] + 20
+                    h_popup = lh * len(all_lines) + 20
+                    popup_surf = pygame.Surface((w_popup, h_popup), pygame.SRCALPHA)
+                    popup_surf.fill((47,47,47,230))
+                    for i, ln in enumerate(all_lines):
+                        if i == 0:
+                            txt = headline_font.render(ln, True, (255,165,0))
+                            x = (w_popup - txt.get_width()) // 2
+                        else:
+                            txt = body_font.render(ln, True, "#ffffff")
+                            x = 10
+                        popup_surf.blit(txt, (x, 10 + i * lh))
+                    popup_rect = popup_surf.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
+                    continue
+
+            # ── Typing input for BUY/SELL ────────────────────────────────
             if active_action and e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_BACKSPACE:
                     input_str = input_str[:-1]
@@ -491,13 +519,13 @@ while True:
                     popup_surf.fill((47,47,47,230))
                     for i, ln in enumerate(lines):
                         popup_surf.blit(font.render(ln,True,"#ffffff"), (10,10+i*lh))
-                    popup_rect = popup_surf.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
+                    popup_rect = pygame.Rect((SCREEN_WIDTH//2 - w_p//2, SCREEN_HEIGHT//2 - h_p//2), (w_p,h_p))
                     active_action = None
                     input_str     = ""
                 elif e.unicode.isdigit() or e.unicode == ".":
                     input_str += e.unicode
 
-            # Other button clicks
+            # ── Other button clicks ─────────────────────────────────────
             if e.type == pygame.MOUSEBUTTONDOWN and not active_action:
                 # BACK
                 if back_btn.checkForInput(mpos):
