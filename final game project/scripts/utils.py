@@ -15,5 +15,3 @@ def load_images(path):
         images.append(load_image(path + "/" + img_name))
     
     return images
-
-load_images("Floor/")
