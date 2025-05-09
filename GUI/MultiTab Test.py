@@ -203,14 +203,14 @@ def draw_game():
     global chart_surf
     screen.fill((30, 30, 30))
 
-    # ── Tab bar ───────────────────────────────────────────────────────
+    # -- Tab bar -------------------------------------------------------
     m = pygame.mouse.get_pos()
     tab_price_btn.bg_color     = "#888888" if active_tab == "prices"    else "#444444"
     tab_portfolio_btn.bg_color = "#888888" if active_tab == "portfolio" else "#444444"
     for btn in (tab_price_btn, tab_portfolio_btn):
         btn.changeColor(m)
         btn.update(screen)
-    # ── End Tab bar ───────────────────────────────────────────────────
+    # -- End Tab bar ---------------------------------------------------
 
     # common header
     hf = pixel_font(25)
@@ -296,42 +296,14 @@ def draw_game():
         chg_surf = chg_font.render(chg_text, True, color)
         screen.blit(chg_surf, (50, 120 + val_surf.get_height() + 5))
 
-        # 6) compute chart sizes & positions
-        chart_w, chart_h = (SCREEN_WIDTH - 400) // 2, 400
+        # 6) draw the portfolio‐value chart below
         chart_y = 120 + val_surf.get_height() + chg_surf.get_height() + 20
-
-        # left: portfolio-value chart
         port_surf = create_portfolio_chart(
-            df_daily, shares, years, year_idx, (chart_w, chart_h), FONT_PATH
+            df_daily, shares, years, year_idx, chart_size, FONT_PATH
         )
         screen.blit(port_surf, (50, chart_y))
 
-        # right: price-history chart
-        price_surf = create_chart(
-            df_daily, years, year_idx, (chart_w, chart_h), FONT_PATH
-        )
-        screen.blit(price_surf, (50 + chart_w + 50, chart_y))
-
-        # 7) company list on the far right
-        list_x = 50 + chart_w * 2 + 100
-        pf = pixel_font(24)
-        for i, comp_name in enumerate(COMPANIES):
-            ticker      = COMPANIES[comp_name]
-            num_shares  = shares[comp_name]
-            # latest price for that ticker
-            last_price  = df_sub[ticker].iloc[-1] if ticker in df_sub.columns else 0
-
-            y_off = chart_y + i * 60
-            # company name
-            screen.blit(pf.render(comp_name, True, "#ffffff"), (list_x, y_off))
-            # share count
-            screen.blit(pf.render(f"{num_shares:.2f} shares", True, "#aaaaaa"),
-                        (list_x, y_off + 24))
-            # current share price
-            screen.blit(pf.render(f"${last_price:,.2f}", True, "#ffffff"),
-                        (list_x + 150, y_off))
-
-        # 8) draw navigation buttons
+        # 7) draw your navigation buttons
         m = pygame.mouse.get_pos()
         back_btn.changeColor(m);      back_btn.update(screen)
         next_year_btn.changeColor(m); next_year_btn.update(screen)
