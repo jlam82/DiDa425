@@ -222,7 +222,7 @@ def draw_game():
         comp   = active_tab
         ticker = COMPANIES[comp]
 
-        # ── Price & YTD change ────────────────────────────────────────
+        # -- Price & YTD change ----------------------------------------
         cutoff = datetime.datetime(years[year_idx],12,31)
         df_sub = df_daily[df_daily.index <= cutoff]
         current_price = float(df_sub[ticker].iloc[-1])
@@ -244,7 +244,7 @@ def draw_game():
             True, "#00c853" if change >= 0 else "#d32f2f"
         ), (50,120 + price_surf.get_height() + 5))
 
-        # ── Total Return ───────────────────────────────────────────────
+        # -- Total Return -----------------------------------------------
         cost_basis     = totalinvested[comp]
         total_sold     = sold[comp]
         position_value = shares[comp] * current_price
@@ -258,12 +258,12 @@ def draw_game():
             True, "#00c853" if total_ret >= 0 else "#d32f2f"
         ), (180 + tr_font.size("Total Return: ")[0] + 20, SCREEN_HEIGHT-100))
 
-        # ── Price Chart ────────────────────────────────────────────────
+        # -- Price Chart ------------------------------------------------
         chart = create_chart(df_daily[[ticker]], years, year_idx, (700,400), FONT_PATH)
         y_off_chart = 120 + price_surf.get_height() + pixel_font(24).get_linesize() + 20
         screen.blit(chart, (50, y_off_chart))
 
-        # ── CSV Metrics ────────────────────────────────────────────────
+        # -- CSV Metrics ------------------------------------------------
         df_cur = csv_dfs[comp]
         cols   = [c for c in df_cur.columns if c.year == years[year_idx]]
         lines  = []
@@ -281,7 +281,7 @@ def draw_game():
                 surf = pixel_font(20).render(text, True, "#ffffff")
                 screen.blit(surf, (780, 220 + i*30))
 
-        # ── News Button with Hover ─────────────────────────────────────
+        # -- News Button with Hover -------------------------------------
         comp_news = news_data.get(comp, [])
         item = next((it for it in comp_news if it.get("year") == years[year_idx]), None)
         if item:
@@ -303,13 +303,13 @@ def draw_game():
         news_btn.changeColor(m)
         news_btn.update(screen)
 
-        # ── Shares & Value ─────────────────────────────────────────────
+        # -- Shares & Value ---------------------------------------------
         screen.blit(pixel_font(20).render(f"Shares: {shares[comp]:.2f}", True, "#ffffff"), (300,140))
         screen.blit(pixel_font(20).render(
             f"Total Value: ${shares[comp]*current_price:,.2f}", True, "#ffffff"
         ), (600,140))
 
-        # ── Invest/Sell/Next/Back ──────────────────────────────────────
+        # -- Invest/Sell/Next/Back --------------------------------------
         invest_btns[comp].changeColor(m); invest_btns[comp].update(screen)
         sell_btns[comp].bg_color = "#555555" if shares[comp]==0 else "Green"
         sell_btns[comp].changeColor(m); sell_btns[comp].update(screen)
@@ -322,7 +322,7 @@ def draw_game():
                         (input_box.x+5, input_box.y+5))
 
     else:
-        # ── Portfolio View ─────────────────────────────────────────────
+        # -- Portfolio View ---------------------------------------------
         cutoff = datetime.datetime(years[year_idx],12,31)
         df_sub = df_daily[df_daily.index <= cutoff]
         port_values = pd.Series(0.0, index=df_sub.index)
@@ -349,7 +349,7 @@ def draw_game():
             True, "#00c853" if change >= 0 else "#d32f2f"
         ), (50, 120 + pixel_font(72).get_linesize() + 5))
 
-        # ── Two charts side by side ────────────────────────────────────
+        # -- Two charts side by side ------------------------------------
         w, h = (SCREEN_WIDTH - 400)//2, 400
         y0   = 120 + pixel_font(72).get_linesize() + pixel_font(24).get_linesize() + 20
 
@@ -358,7 +358,7 @@ def draw_game():
         screen.blit(port_surf,  (50, y0))
         screen.blit(price_surf, (50 + w + 50, y0))
 
-        # ── Company list ──────────────────────────────────────────────
+        # -- Company list ----------------------------------------------
         pf = pixel_font(24)
         for i, name in enumerate(COMPANIES):
             tt = COMPANIES[name]
@@ -374,7 +374,7 @@ def draw_game():
         next_year_btn.changeColor(m); next_year_btn.update(screen)
         back_btn.changeColor(m);    back_btn.update(screen)
 
-    # ── Pop‑up Overlay ─────────────────────────────────────────────
+    # -- Pop‑up Overlay ---------------------------------------------
     if popup_surf is not None and isinstance(popup_rect, pygame.Rect):
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0,0,0,180))
@@ -396,7 +396,7 @@ while True:
 
         mpos = pygame.mouse.get_pos()
 
-        # ── News Button Click ─────────────────────────────────────────
+        # -- News Button Click -----------------------------------------
         if e.type == pygame.MOUSEBUTTONDOWN and active_tab in COMPANIES:
             if news_btn.checkForInput(mpos):
                 all_lines = [news_headline] + textwrap.wrap(news_body or "", width=40)
@@ -424,7 +424,7 @@ while True:
                 popup_rect = popup_surf.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2))
                 continue
 
-        # ── MENU Input ────────────────────────────────────────────────
+        # -- MENU Input ------------------------------------------------
         if state == "MENU":
             if e.type == pygame.MOUSEBUTTONDOWN:
                 if play_btn.checkForInput(mpos):
@@ -433,7 +433,7 @@ while True:
                     pygame.quit()
                     sys.exit()
         else:
-            # ── Typing input for BUY/SELL ────────────────────────────────
+            # -- Typing input for BUY/SELL --------------------------------
             if active_action and e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_BACKSPACE:
                     input_str = input_str[:-1]
@@ -483,7 +483,7 @@ while True:
                 elif e.unicode.isdigit() or e.unicode == ".":
                     input_str += e.unicode
 
-            # ── Other button clicks ─────────────────────────────────────
+            # -- Other button clicks -------------------------------------
             if e.type == pygame.MOUSEBUTTONDOWN and not active_action:
                 # BACK
                 if back_btn.checkForInput(mpos):
@@ -508,7 +508,7 @@ while True:
                 if next_year_btn.checkForInput(mpos) and year_idx < len(years)-1:
                     year_idx += 1
 
-    # ── Render ───────────────────────────────────────────────────────
+    # -- Render -------------------------------------------------------
     if state == "MENU":
         draw_menu()
     else:

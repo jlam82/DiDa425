@@ -345,8 +345,8 @@ def draw_game():
         comp   = active_tab
         ticker = COMPANIES[comp]
 
-        # ── 1) Compute current & prior year values ──────────────────────────
-            # ── Compute current & prior‐year share price ──────────────────────────
+        # -- 1) Compute current & prior year values --------------------------
+            # -- Compute current & prior‐year share price --------------------------
         cutoff       = datetime.datetime(years[year_idx], 12, 31)
         df_sub       = df_daily[df_daily.index <= cutoff]
         current_price = df_sub[ticker].iloc[-1]
@@ -361,7 +361,7 @@ def draw_game():
         change = current_price - prev_price
         pct    = (change / prev_price * 100) if prev_price else 0
 
-        # ── Draw per‐share price & YTD change ─────────────────────────────────
+        # -- Draw per‐share price & YTD change ---------------------------------
         big_font    = pixel_font(48)
         price_surf  = big_font.render(f"${current_price:,.2f}", True, "#ffffff")
         screen.blit(price_surf, (50, 120))
@@ -399,7 +399,7 @@ def draw_game():
         screen.blit(pr_surf, (tx + tr_surf.get_width() + 20, ty))
 
 
-        # ── Then draw the chart a bit lower ───────────────────────────────────
+        # -- Then draw the chart a bit lower -----------------------------------
         chart_y = 120 + price_surf.get_height() + small_surf.get_height() + 20
         chart   = create_chart(df_daily[[ticker]], years, year_idx, chart_size, FONT_PATH)
         screen.blit(chart, (50, chart_y))
