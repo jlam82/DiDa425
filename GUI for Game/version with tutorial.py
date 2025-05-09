@@ -284,7 +284,7 @@ news_btn = Button(None, (1000, 400), "News", pixel_font(40), "#ffffff", "#444444
 # Tutorial navigation buttons
 next_tut_btn = Button(None, (SCREEN_WIDTH-180, SCREEN_HEIGHT-80),
                       "Next", pixel_font(30), "White", "Green")
-help_btn     = Button(None, (SCREEN_WIDTH-180, 30),
+help_btn     = Button(None, (SCREEN_WIDTH-180, 600),
                       "Help", pixel_font(24), "#ffffff", "#444444")
 
 # ------------------ Draw functions ------------------
@@ -395,10 +395,10 @@ def draw_game():
         news_btn.update(screen)
 
         # ── Shares & Value ─────────────────────────────────────────────
-        screen.blit(pixel_font(20).render(f"Shares: {shares[comp]:.2f}", True, "#ffffff"), (300,140))
+        screen.blit(pixel_font(20).render(f"Shares: {shares[comp]:.2f}", True, "#ffffff"), (400,140))
         screen.blit(pixel_font(20).render(
             f"Total Value: ${shares[comp]*current_price:,.2f}", True, "#ffffff"
-        ), (600,140))
+        ), (700,140))
 
         # ── Invest/Sell/Next/Back ──────────────────────────────────────
         invest_btns[comp].changeColor(m); invest_btns[comp].update(screen)
