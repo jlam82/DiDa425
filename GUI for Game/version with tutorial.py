@@ -25,7 +25,7 @@ for df in csv_dfs.values():
     df.columns = pd.to_datetime(df.columns, format="%Y-%m-%d")
 
 # ------------------ Load news data ------------------
-with open("news.json") as f:
+with open("news.json", encoding="utf-8") as f:
     news_data = json.load(f)
 
 # ------------------ Settings & Globals ------------------
@@ -55,10 +55,84 @@ news_body      = ""
 
 # Tutorial state
 tutorial_slides = [
-    "Welcome to PixelInvest!\n\nIn this tutorial you'll learn how to buy and sell.",
-    "Use the TAB buttons to switch between companies or see your portfolio.",
-    "On a company page you can BUY or SELL shares.\n\nOn Portfolio you see your combined holdings.",
-    "That’s it! Let’s get started."
+"""Welcome to Pixel Invest! You are an investor
+
+looking to make it big.It's 2002 and it's
+
+been one year since the dot-com bubble crisis.
+
+You've taken an interest in the video game
+
+industry and believe that this is where the
+
+money is at. After hours of research you've
+
+concluded that Nintendo, TakeTwo, and EA will
+
+make you rich.""",
+"""Use buttons to switch between companies
+
+you want to invest in and manage your port-
+
+folio of investments. You can buy and sell
+
+shares of stock in these companies the va-
+
+lue of which fluctuates with market events,
+
+expectations, and finances of the firm.""",
+"""Company Button: Navigate to the company you
+
+want to invest in (also tells you important
+
+data)
+
+
+Buy button: Enter the amount of shares you
+
+would like to purchase at a set price.
+
+
+Sell button: Enter the amount of shares you
+
+would like to sell at a set price.""",
+"""
+News: Each firm has important news to help
+
+you decide when to buy and when to sell.
+
+
+Next Year: Goes to the next fiscal year and
+
+you can see how your portfolio changed.""",
+"""Provided company informations:
+
+
+Net income - Tells how much income firm made
+
+net of expenses determined from revenue.
+
+
+Revenue - How much the firm made in sales
+
+and profits.""",
+"""Total equity - Financial value of firm,
+
+how much would be left if firm sold all
+
+assets and paid off all debts.
+
+
+PM (Profit Margin) - Amount by which revenue
+
+from sales exceeds costs in a business. Higher
+
+is better.
+
+
+EPS (Earnings per share) - How much profit
+
+the company makes on each share of stock."""
 ]
 tutorial_idx    = 0
 
@@ -176,8 +250,11 @@ df_daily.index = pd.to_datetime(df_daily.index)
 # ------------------ Buttons ------------------
 tab_buttons = {}
 for i, name in enumerate(list(COMPANIES.keys()) + ["Portfolio"]):
-    tab_buttons[name] = Button(None, (100 + i*300, 80), name,
-                               pixel_font(24), "#ffffff", "#444444")
+    tab_buttons[name] = Button(
+        None, (100 + i*200+30, 80), 
+        name, pixel_font(24),
+        "#ffffff", "#444444"
+    )
 active_tab = list(tab_buttons.keys())[0]
 
 invest_btns = {
@@ -230,7 +307,7 @@ def draw_game():
         btn.changeColor(m); btn.update(screen)
 
     # header
-    screen.blit(pixel_font(25).render(f"Year: {years[year_idx]}", True, "#b68f40"), (700,       30))
+    screen.blit(pixel_font(25).render(f"Year: {years[year_idx]}", True, "#b68f40"), (700, 30))
     screen.blit(pixel_font(25).render(f"Cash: ${cash:,.0f}", True, "#ffffff"),  (250, 30))
 
     if active_tab in COMPANIES:
@@ -481,7 +558,7 @@ while True:
                     input_str = input_str[:-1]
                 elif e.key == pygame.K_RETURN:
                     mode, comp = active_action
-                    price      = price_vals[comp][year_idx]
+                    price = price_vals[comp][year_idx]
                     try:
                         num = int(input_str)
                     except:

@@ -25,7 +25,7 @@ for df in csv_dfs.values():
     df.columns = pd.to_datetime(df.columns, format="%Y-%m-%d")
 
 # ------------------ Load news data ------------------
-with open("news.json") as f:
+with open("news.json", encoding="utf-8") as f:
     news_data = json.load(f)
 
 # ------------------ Settings & Globals ------------------
