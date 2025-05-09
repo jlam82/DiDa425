@@ -1,22 +1,29 @@
 import io
+import os
 import sys
 import datetime
 import json
 import textwrap
+import time
 
 import pygame
 import pandas as pd
 import yfinance as yf
-
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib import font_manager
 from matplotlib.ticker import FuncFormatter
 import matplotlib.pyplot as plt
+import csv
 
 
 from button import Button
+
+abspath = os.path.abspath(__file__)
+dirname = os.path.dirname(abspath)
+
+high_scores = pd.read_csv("scores.csv")
 
 class Game:
     def __init__(self):
@@ -33,6 +40,10 @@ class Game:
         self.year_idx = 0
         self.state = "MENU"
         self.cash = self.START_CASH
+        self.current = 0 # second amount
+        self.entering_name = False
+        self.player_name   = ""
+        self.leaderboard   = None   
         self.shares = {n: 0.0 for n in self.COMPANIES}
         self.invested = {n: 0.0 for n in self.COMPANIES}
         self.totalinvested = self.invested.copy()
@@ -120,6 +131,9 @@ the company makes on each share of stock."""
         ]
         self.tutorial_idx = 0
 
+        self.shift = False # for multi-key entry
+
+
         # ------------------ Load CSV data ------------------
         self.csv_dfs = {
             "Nintendo": pd.read_csv("Nintendo Annual CSV - Sheet1.csv", index_col=0, thousands=","),
@@ -195,6 +209,24 @@ the company makes on each share of stock."""
                                    "Next", self.pixel_font(30), "White", "Green")
         self.help_btn = Button(None, (self.SCREEN_WIDTH - 180, 600),
                                "Help", self.pixel_font(24), "#ffffff", "#444444")
+        self.play_again_btn = Button(None, (self.SCREEN_WIDTH //2, 650), "Play again?", self.pixel_font(24), "#ffffff", "#444444")
+
+
+    def restart_game(self):
+        print("Hello world") # keeping this here
+        print(self.cash, self.current)
+
+        csv_file = open("scores.csv", "a", newline="", encoding="utf-8")
+        csv_writer = csv.writer(csv_file)
+        csv_writer.writerow([self.player_name, self.cash+self.current])
+        csv_file.close()
+        
+        print("Goodbye World!")
+
+        python = sys.executable # get Python's interpreter's executable path
+        script = os.path.join(dirname, os.path.basename(abspath))  # Absolute path to the script
+    
+        os.execl(python, python, script, *sys.argv[1:]) # restart the script    
 
     def create_chart(self, df, years, idx, size):
         cutoff = datetime.datetime(years[idx], 3, 31)
@@ -335,6 +367,50 @@ the company makes on each share of stock."""
             self.screen.blit(txt, (x, y0 + i * font.get_linesize()))
         m = pygame.mouse.get_pos()
         self.next_tut_btn.changeColor(m); self.next_tut_btn.update(self.screen)
+    def draw_endgame(self):
+        cutoff = datetime.datetime(self.years[self.year_idx], 12, 31)
+        df_sub = self.df_daily[self.df_daily.index <= cutoff]
+        port_values = pd.Series(0.0, index=df_sub.index)
+        for comp_name, num_shares in self.shares.items():
+            ticker = self.COMPANIES[comp_name]
+            if ticker in df_sub.columns:
+                port_values += df_sub[ticker] * num_shares
+        current_value = port_values.iloc[-1]
+        self.current = current_value
+        m = pygame.mouse.get_pos()
+        self.screen.fill((20,20,20))
+
+        score = int(self.cash + self.current)
+        font_big    = pygame.font.Font(self.FONT_PATH, 48)
+        score_surf  = font_big.render(f"${score}", True, "#ffffff")
+        score_rect  = score_surf.get_rect(center=(self.SCREEN_WIDTH//2, 100))
+        self.screen.blit(score_surf, score_rect)
+
+        prompt_font = pygame.font.Font(self.FONT_PATH, 32)
+        if self.entering_name:
+            prompt_surf = prompt_font.render("Enter 5 letter name:", True, "#ffffff")
+            p_rect      = prompt_surf.get_rect(center=(self.SCREEN_WIDTH//2, 180))
+            self.screen.blit(prompt_surf, p_rect)
+
+            name_surf = prompt_font.render(self.player_name, True, "#ffffff")
+            n_rect    = name_surf.get_rect(center=(self.SCREEN_WIDTH//2, 230))
+            self.screen.blit(name_surf, n_rect)
+
+        else:
+            hdr_surf = prompt_font.render("Leaderboard", True, "#ffffff")
+            hdr_rect = hdr_surf.get_rect(center=(self.SCREEN_WIDTH//2, 180))
+            self.screen.blit(hdr_surf, hdr_rect)
+
+            small = pygame.font.Font(self.FONT_PATH, 28)
+            for i, row in enumerate(self.leaderboard.head(5).itertuples(), start=1):
+                text = f"{i}. {row.name} — ${row.score}"
+                txt_surf = small.render(text, True, "#ffffff")
+                y = 180 + i * 40
+                self.screen.blit(txt_surf, (self.SCREEN_WIDTH//2 - txt_surf.get_width()//2, y))
+
+            self.play_again_btn.changeColor(m)
+            self.play_again_btn.update(self.screen)
+
 
     def draw_game(self):
         self.screen.fill((30, 30, 30))
@@ -475,9 +551,28 @@ the company makes on each share of stock."""
             #self.back_btn.changeColor(m); self.back_btn.update(self.screen)
 
             if self.active_action and self.active_action[1] == comp:
+                # 1) draw the input box and the typed shares
                 pygame.draw.rect(self.screen, (255,255,255), self.input_box, 2)
-                self.screen.blit(self.pixel_font(20).render(self.input_str, True, "#ffffff"),
-                                 (self.input_box.x+5, self.input_box.y+5))
+                txt_surf = self.pixel_font(20).render(self.input_str, True, "#ffffff")
+                self.screen.blit(txt_surf, (self.input_box.x + 5, self.input_box.y + 5))
+
+                # 2) live cost/proceeds preview
+                #    parse the number you've typed so far (int or float)
+                try:
+                    amt = float(self.input_str) if "." in self.input_str else int(self.input_str)
+                except ValueError:
+                    amt = 0
+                #    use the current_price you already computed earlier
+                cost = amt * current_price
+                cost_text = f"${cost:,.2f}"
+                cost_surf = self.pixel_font(20).render(cost_text, True, "#ffffff")
+                #    blit it just to the right of the input box
+                self.screen.blit(
+                    cost_surf,
+                    (self.input_box.x + self.input_box.width + 10,
+                    self.input_box.y + 5)
+                )
+
 
         else:
             # ── Portfolio View ─────────────────────────────────────────────
@@ -490,6 +585,7 @@ the company makes on each share of stock."""
                     port_values += df_sub[tt] * num
 
             current = port_values.iloc[-1]
+            self.current = current
             if self.year_idx > 0:
                 prev_cutoff  = datetime.datetime(self.years[self.year_idx-1],12,31)
                 prev_series  = port_values[port_values.index <= prev_cutoff]
@@ -542,42 +638,80 @@ the company makes on each share of stock."""
 
     def run(self):
         while True:
-            for e in pygame.event.get():
-                if e.type == pygame.QUIT:
+            # ── 1) EVENT LOOP ────────────────────────────────────────
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
 
+                # dismiss pop‑ups
                 if self.popup_surf is not None:
-                    if e.type == pygame.MOUSEBUTTONDOWN:
-                        self.popup_surf = None
-                        self.popup_rect = None
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        self.popup_surf  = None
+                        self.popup_rect  = None
                     continue
 
                 mpos = pygame.mouse.get_pos()
 
-                # ── MENU Input ────────────────────────────────────────────────
+                # ── MENU Input ───────────────────────────────────────
                 if self.state == "MENU":
-                    if e.type == pygame.MOUSEBUTTONDOWN:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
                         if self.play_btn.checkForInput(mpos):
                             self.tutorial_idx = 0
-                            self.state = "TUTORIAL"
+                            self.state        = "TUTORIAL"
                         elif self.quit_btn.checkForInput(mpos):
                             pygame.quit()
                             sys.exit()
 
-                # ── TUTORIAL Input ────────────────────────────────────────────
+                # ── TUTORIAL Input ─────────────────────────────────
                 elif self.state == "TUTORIAL":
-                    if e.type == pygame.MOUSEBUTTONDOWN and self.next_tut_btn.checkForInput(mpos):
+                    if event.type == pygame.MOUSEBUTTONDOWN and self.next_tut_btn.checkForInput(mpos):
                         self.tutorial_idx += 1
                         if self.tutorial_idx >= len(self.tutorial_slides):
                             self.active_tab = "Portfolio"
-                            self.state = "GAME"
+                            self.state      = "GAME"
                     continue
 
-                # ── GAME Input ────────────────────────────────────────────────
+                # ── ENDGAME Input ───────────────────────────────────
+                elif self.state == "ENDGAME":
+                    # name‑entry
+                    if self.entering_name and event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_BACKSPACE:
+                            self.player_name = self.player_name[:-1]
+                        elif event.unicode.isalpha() and len(self.player_name) < 5:
+                            self.player_name += event.unicode.upper()
+                        elif event.key == pygame.K_RETURN and len(self.player_name) == 5:
+                            score = int(self.cash + self.current)
+                            with open("scores.csv", "a", newline="", encoding="utf-8") as f:
+                                csv.writer(f).writerow([self.player_name, score])
+
+                            df = pd.read_csv("scores.csv", names=["name","score"])
+                            df["score"] = pd.to_numeric(df["score"], errors="coerce").fillna(0).astype(int)
+                            df.sort_values(by="score", ascending=False, inplace=True)
+
+                            self.leaderboard   = df
+                            self.entering_name = False
+
+                        continue
+
+                    # Play again?
+                    if (not self.entering_name
+                        and event.type == pygame.MOUSEBUTTONDOWN
+                        and self.play_again_btn.checkForInput(mpos)):
+                        pygame.quit()
+                        self.restart_game()
+                        return
+
+                # ── GAME Input ───────────────────────────────────────
                 else:
-                    # ── News Button Click ────────────────────────────────────
-                    if e.type == pygame.MOUSEBUTTONDOWN and self.active_tab in self.COMPANIES:
+                    # pressing G takes you to the end‐game / name‐entry screen
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_g:
+                        self.state         = "ENDGAME"
+                        self.entering_name = True
+                        self.player_name   = ""
+                        self.leaderboard   = None
+                    # News button click
+                    if event.type == pygame.MOUSEBUTTONDOWN and self.active_tab in self.COMPANIES:
                         if self.news_btn.checkForInput(mpos):
                             all_lines = [self.news_headline] + textwrap.wrap(self.news_body or "", width=40)
                             headline_font = pygame.font.Font(self.FONT_PATH, 24)
@@ -603,16 +737,15 @@ the company makes on each share of stock."""
                                 self.popup_surf.blit(txt, (x, 10 + i * lh))
                             self.popup_rect = self.popup_surf.get_rect(center=(self.SCREEN_WIDTH//2, self.SCREEN_HEIGHT//2))
                             continue
-                                        # ── Hint Button Click ─────────────────────────────────
-                    if (e.type == pygame.MOUSEBUTTONDOWN
+
+                    # Hint button click
+                    if (event.type == pygame.MOUSEBUTTONDOWN
                             and self.active_tab in self.COMPANIES
                             and self.hint_btn.checkForInput(mpos)):
-
                         if self.hint_count < 5:
                             next_year = self.years[self.year_idx] + 1
                             comp_news = self.news_data.get(self.active_tab, [])
-                            item = next((it for it in comp_news
-                                         if it.get("year") == next_year), None)
+                            item = next((it for it in comp_news if it.get("year") == next_year), None)
                             if item:
                                 self.show_popup(item["headline"], item["body"])
                             else:
@@ -622,13 +755,13 @@ the company makes on each share of stock."""
                             self.show_popup("Out of hints", "")
                         continue
 
-                    # ── Typing input for BUY/SELL ─────────────────────────────
-                    if self.active_action and e.type == pygame.KEYDOWN:
-                        if e.key == pygame.K_BACKSPACE:
+                    # BUY/SELL typing
+                    if self.active_action and event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_BACKSPACE:
                             self.input_str = self.input_str[:-1]
-                        elif e.key == pygame.K_RETURN:
+                        elif event.key == pygame.K_RETURN:
                             mode, comp = self.active_action
-                            price = self.price_vals[comp][self.year_idx]
+                            price      = self.price_vals[comp][self.year_idx]
                             try:
                                 num = int(self.input_str)
                             except:
@@ -672,54 +805,46 @@ the company makes on each share of stock."""
                             )
                             self.active_action = None
                             self.input_str     = ""
-                        elif e.unicode.isdigit() or e.unicode == ".":
-                            self.input_str += e.unicode
+                        elif event.unicode.isdigit() or event.unicode == ".":
+                            self.input_str += event.unicode
 
-                    # ── Other button clicks ─────────────────────────────────
-                    if e.type == pygame.MOUSEBUTTONDOWN and not self.active_action:
-                        # BACK
-                        #if self.back_btn.checkForInput(mpos):
-                            #self.state    = "MENU"
-                            #self.year_idx = 0
-                            #self.cash     = self.START_CASH
-                            #self.shares   = {n:0.0 for n in self.COMPANIES}
-                            #self.invested = {n:0.0 for n in self.COMPANIES}
-                            #self.totalinvested = self.invested.copy()
-                            #self.sold     = self.invested.copy()
-
-                        # TAB SWITCH
+                    # Other button clicks (tabs, buy/sell, next year, help)
+                    if event.type == pygame.MOUSEBUTTONDOWN and not self.active_action:
                         for name, btn in self.tab_buttons.items():
                             if btn.checkForInput(mpos):
                                 self.active_tab = name
-
-                        # BUY/SELL
                         if self.active_tab in self.COMPANIES:
                             if self.invest_btns[self.active_tab].checkForInput(mpos):
                                 self.active_action = ("invest", self.active_tab)
-                                self.input_str = ""
+                                self.input_str     = ""
                             elif self.sell_btns[self.active_tab].checkForInput(mpos) and self.shares[self.active_tab] > 0:
                                 self.active_action = ("sell", self.active_tab)
-                                self.input_str = ""
-
-                        # NEXT YEAR
-                        if self.next_year_btn.checkForInput(mpos) and self.year_idx < len(self.years)-1:
+                                self.input_str     = ""
+                        if self.next_year_btn.checkForInput(mpos) and self.year_idx < len(self.years) - 1:
                             self.year_idx += 1
-
-                        # HELP in Portfolio
+                            # end the game once  2025
+                            if self.years[self.year_idx] >= 2025:
+                                self.state         = "ENDGAME"
+                                self.entering_name = True
+                                self.player_name   = ""
+                                self.leaderboard   = None
                         if self.active_tab == "Portfolio" and self.help_btn.checkForInput(mpos):
                             self.tutorial_idx = 0
-                            self.state = "TUTORIAL"
+                            self.state        = "TUTORIAL"
 
-            # ── RENDER ─────────────────────────────────────────────────
-            if self.state == "MENU":
+            # ── 2) DRAW & FLIP (outside of the event loop) ─────────────────
+            if   self.state == "MENU":
                 self.draw_menu()
             elif self.state == "TUTORIAL":
                 self.draw_tutorial()
+            elif self.state == "ENDGAME":
+                self.draw_endgame()
             else:
                 self.draw_game()
 
             pygame.display.flip()
             self.clock.tick(self.FPS)
+
 
 if __name__ == "__main__":
     Game().run()
