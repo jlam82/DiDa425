@@ -4,7 +4,6 @@ import sys
 import datetime
 import json
 import textwrap
-import time
 
 import pygame
 import pandas as pd
@@ -17,6 +16,8 @@ from matplotlib.ticker import FuncFormatter
 import matplotlib.pyplot as plt
 import csv
 
+# import ctypes
+# ctypes.windll.shcore.SetProcessDpiAwareness(0) # for Jeff's 4k resolution laptop
 
 from button import Button
 
@@ -27,7 +28,7 @@ high_scores = pd.read_csv("scores.csv")
 
 class Game:
     def __init__(self):
-        # ------------------ Settings & Globals ------------------
+        # setting attribute
         self.SCREEN_WIDTH, self.SCREEN_HEIGHT = 1280, 720
         self.FPS = 30
         self.FONT_PATH = "assets/font.ttf"
@@ -58,7 +59,7 @@ class Game:
 
         # Tutorial state
         self.tutorial_slides = [
-            """Welcome to Pixel Invest! You are an investor
+"""Welcome to Pixel Invest! You are an investor
 
 looking to make it big. It's 2002 and it's
 
@@ -73,7 +74,7 @@ money is at. After hours of research you've
 concluded that Nintendo, TakeTwo, and EA will
 
 make you rich.""",
-            """Use buttons to switch between companies
+"""Use buttons to switch between companies
 
 you want to invest in and manage your port-
 
@@ -84,7 +85,7 @@ shares of stock in these companies the va-
 lue of which fluctuates with market events,
 
 expectations, and finances of the firm.""",
-            """Company Button: Navigate to the company you
+"""Company Button: Navigate to the company you
 
 want to invest in (also tells you important
 
@@ -97,14 +98,14 @@ would like to purchase at a set price.
 Sell button: Enter the amount of shares you
 
 would like to sell at a set price.""",
-            """News: Each firm has important news to help
+"""News: Each firm has important news to help
 
 you decide when to buy and when to sell.
 
 Next Year: Goes to the next fiscal year and
 
 you can see how your portfolio changed.""",
-            """Provided company informations:
+"""Provided company informations:
 
 Net income - Tells how much income firm made
 
@@ -113,7 +114,7 @@ net of expenses determined from revenue.
 Revenue - How much the firm made in sales
 
 and profits.""",
-            """Total equity - Financial value of firm,
+"""Total equity - Financial value of firm,
 
 how much would be left if firm sold all
 
@@ -171,45 +172,47 @@ the company makes on each share of stock."""
 
         # ------------------ Buttons ------------------
         self.tab_buttons = {}
-        for i, name in enumerate(list(self.COMPANIES.keys()) + ["Portfolio"]):
+        for n, name in enumerate(list(self.COMPANIES.keys()) + ["Portfolio"]):
             self.tab_buttons[name] = Button(
-                None, (100 + i * 200 + 30, 80),
+                None, (100 + n * 200 + 30, 80),
                 name, self.pixel_font(24),
                 "#ffffff", "#444444"
             )
         self.active_tab = list(self.tab_buttons.keys())[0]
 
         self.invest_btns = {
-            n: Button(None, (850, 500), "BUY",
-                      self.pixel_font(30), "White", "Green")
-            for n in self.COMPANIES
+            n: Button(None, (850, 500), "BUY", self.pixel_font(30), "White", "Green") for n in self.COMPANIES
         }
         self.sell_btns = {
-            n: Button(None, (1150, 500), "SELL",
-                      self.pixel_font(30), "White", "RED")
-            for n in self.COMPANIES
+            n: Button(None, (1150, 500),"SELL", self.pixel_font(30), "White", "RED") for n in self.COMPANIES
         }
-
-        self.next_year_btn = Button(None, (self.SCREEN_WIDTH - 180, 40), "Next Year",
-                                   self.pixel_font(25), "White", "Green")
-        self.play_btn = Button(pygame.image.load("assets/Play Rect.png"),
-                               (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 - 50),
-                               "PLAY", self.pixel_font(48), "#d7fcd4", "White")
-        self.quit_btn = Button(pygame.image.load("assets/Quit Rect.png"),
-                               (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 + 100),
-                               "QUIT", self.pixel_font(48), "#d7fcd4", "White")
-        #self.back_btn = Button(None, (80, 30), "BACK", self.pixel_font(24), "White", "Green")
-        self.news_btn = Button(None, (1000, 400), "News", self.pixel_font(40), "#ffffff", "#444444")
-                # right after you create self.news_btn …
-        self.hint_btn   = Button(None, (80, 680), "Hint",
-                                 self.pixel_font(20), "#ffffff", "#444444")
-        self.hint_count = 0
-
-        self.next_tut_btn = Button(None, (self.SCREEN_WIDTH - 180, self.SCREEN_HEIGHT - 80),
-                                   "Next", self.pixel_font(30), "White", "Green")
-        self.help_btn = Button(None, (self.SCREEN_WIDTH - 180, 600),
-                               "Help", self.pixel_font(24), "#ffffff", "#444444")
-        self.play_again_btn = Button(None, (self.SCREEN_WIDTH //2, 650), "Play again?", self.pixel_font(24), "#ffffff", "#444444")
+        self.next_year_btn = Button(
+            None, (self.SCREEN_WIDTH - 180, 40),
+            "Next Year", self.pixel_font(25), "White", "Green"
+        )
+        self.play_btn = Button(
+            pygame.image.load("assets/Play Rect.png"), (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 - 50),
+            "PLAY", self.pixel_font(48), "#d7fcd4", "White"
+        )
+        self.quit_btn = Button(
+            pygame.image.load("assets/Quit Rect.png"), (self.SCREEN_WIDTH // 2, self.SCREEN_HEIGHT // 2 + 100),
+            "QUIT", self.pixel_font(48), "#d7fcd4", "White"
+        )
+        self.news_btn = Button(
+            None, (1000, 400), "News", self.pixel_font(40), "#ffffff", "#444444"
+        )
+        self.hint_btn   = Button(
+            None, (80, 680), "Hint", self.pixel_font(20), "#ffffff", "#444444"
+        ); self.hint_count = 0
+        self.next_tut_btn = Button(
+            None, (self.SCREEN_WIDTH - 180, self.SCREEN_HEIGHT - 80),
+            "Next", self.pixel_font(30), "White", "Green"
+        )
+        self.help_btn = Button(
+            None, (self.SCREEN_WIDTH - 180, 600),
+                "Help", self.pixel_font(24), "#ffffff", "#444444")
+        self.play_again_btn = Button(
+            None, (self.SCREEN_WIDTH //2, 650), "Play again?", self.pixel_font(24), "#ffffff", "#444444")
 
 
     def restart_game(self):
@@ -429,7 +432,7 @@ the company makes on each share of stock."""
             comp   = self.active_tab
             ticker = self.COMPANIES[comp]
 
-            # ── Price & YTD change ────────────────────────────────────────
+            # -- Price & YTD change ----------------------------------------
             cutoff = datetime.datetime(self.years[self.year_idx],12,31)
             df_sub = self.df_daily[self.df_daily.index <= cutoff]
             current_price = float(df_sub[ticker].iloc[-1])
@@ -451,7 +454,7 @@ the company makes on each share of stock."""
                 True, "#00c853" if change >= 0 else "#d32f2f"
             ), (50,120 + price_surf.get_height() + 5))
 
-            # ── Total Return ───────────────────────────────────────────────
+            # -- Total Return -----------------------------------------------
             cost_basis     = self.totalinvested[comp]
             total_sold     = self.sold[comp]
             position_value = self.shares[comp] * current_price
@@ -465,18 +468,18 @@ the company makes on each share of stock."""
                 True, "#00c853" if total_ret >= 0 else "#d32f2f"
             ), (180 + tr_font.size("Total Return: ")[0] + 20, self.SCREEN_HEIGHT-100))
 
-            # ── Price Chart ────────────────────────────────────────────────
+            # -- Price Chart ------------------------------------------------
             chart = self.create_chart(self.df_daily[[ticker]], self.years, self.year_idx, (700,400))
             y_off_chart = 120 + price_surf.get_height() + self.pixel_font(24).get_linesize() + 20
             self.screen.blit(chart, (50, y_off_chart))
 
-            # ── CSV Metrics ───────────────────────────────────────────────
+            # -- CSV Metrics -----------------------------------------------
             df_cur = self.csv_dfs[comp]
             cols   = [c for c in df_cur.columns if c.year == self.years[self.year_idx]]
             lines  = []
             if cols:
                 col = cols[0]
-                profit_label = "Net Income/Net Profit\n(Losses)"
+                profit_label = r"Net Income/Net Profit\n(Losses)"
                 lines = [
                     f"Net Income:  ${df_cur.loc[profit_label,col]:,.2f}M",
                     f"Revenue:     ${df_cur.loc['Revenue',col]:,.2f}M",
@@ -488,7 +491,7 @@ the company makes on each share of stock."""
                     surf = self.pixel_font(20).render(text, True, "#ffffff")
                     self.screen.blit(surf, (780, 220 + i*30))
 
-            # ── News Button with Hover ─────────────────────────────────────
+            # -- News Button with Hover -------------------------------------
             comp_news = self.news_data.get(comp, [])
             item = next((it for it in comp_news if it.get("year") == self.years[self.year_idx]), None)
             if item:
@@ -509,7 +512,7 @@ the company makes on each share of stock."""
             self.news_btn.changeColor(m); self.news_btn.update(self.screen)
 
 
-                        # ── Hint Button ───────────────────────────────────────────────
+                        # -- Hint Button -----------------------------------------------
             # position it a bit below the news button
             hint_x = 80
             hint_y = 680
@@ -537,13 +540,13 @@ the company makes on each share of stock."""
             self.screen.blit(rem_surf, (label_x, 670))
 
 
-            # ── Shares & Value ─────────────────────────────────────────────
+            # -- Shares & Value ---------------------------------------------
             self.screen.blit(self.pixel_font(20).render(f"Shares: {self.shares[comp]:.2f}", True, "#ffffff"), (400,140))
             self.screen.blit(self.pixel_font(20).render(
                 f"Total Value: ${self.shares[comp]*current_price:,.2f}", True, "#ffffff"
             ), (700,140))
 
-            # ── Invest/Sell/Next/Back ──────────────────────────────────────
+            # -- Invest/Sell/Next/Back --------------------------------------
             self.invest_btns[comp].changeColor(m); self.invest_btns[comp].update(self.screen)
             self.sell_btns[comp].bg_color = "#555555" if self.shares[comp]==0 else "Green"
             self.sell_btns[comp].changeColor(m); self.sell_btns[comp].update(self.screen)
@@ -575,7 +578,7 @@ the company makes on each share of stock."""
 
 
         else:
-            # ── Portfolio View ─────────────────────────────────────────────
+            # -- Portfolio View ---------------------------------------------
             cutoff = datetime.datetime(self.years[self.year_idx],12,31)
             df_sub = self.df_daily[self.df_daily.index <= cutoff]
             port_values = pd.Series(0.0, index=df_sub.index)
@@ -587,7 +590,7 @@ the company makes on each share of stock."""
             current = port_values.iloc[-1]
             self.current = current
             if self.year_idx > 0:
-                prev_cutoff  = datetime.datetime(self.years[self.year_idx-1],12,31)
+                prev_cutoff  = datetime.datetime(self.years[self.year_idx-1], 12, 31)
                 prev_series  = port_values[port_values.index <= prev_cutoff]
                 prev = prev_series.iloc[-1] if not prev_series.empty else port_values.iloc[0]
             else:
@@ -602,7 +605,7 @@ the company makes on each share of stock."""
                 f"{sign}${change:,.2f} ({sign}{pct:.2f}%) YTD",
                 True, "#00c853" if change >= 0 else "#d32f2f"
             ), (50, 120 + self.pixel_font(72).get_linesize() + 5))
-            # ── Two charts side by side ────────────────────────────────────
+            # -- Two charts side by side ------------------------------------
             w, h = (self.SCREEN_WIDTH - 400)//2, 400
             y0   = 120 + self.pixel_font(72).get_linesize() + self.pixel_font(24).get_linesize() + 20
 
@@ -611,7 +614,7 @@ the company makes on each share of stock."""
             self.screen.blit(port_surf,  (50, y0))
             self.screen.blit(price_surf, (50 + w + 50, y0))
 
-            # ── Company list ──────────────────────────────────────────────
+            # -- Company list ----------------------------------------------
             pf = self.pixel_font(16)
             for i, name in enumerate(self.COMPANIES):
                 tt = self.COMPANIES[name]
@@ -629,7 +632,7 @@ the company makes on each share of stock."""
             self.next_year_btn.changeColor(m); self.next_year_btn.update(self.screen)
             #self.back_btn.changeColor(m);    self.back_btn.update(self.screen)
 
-        # ── Pop‑up Overlay ─────────────────────────────────────────────
+        # -- Pop‑up Overlay ---------------------------------------------
         if self.popup_surf is not None and isinstance(self.popup_rect, pygame.Rect):
             overlay = pygame.Surface((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((0,0,0,180))
@@ -638,7 +641,7 @@ the company makes on each share of stock."""
 
     def run(self):
         while True:
-            # ── 1) EVENT LOOP ────────────────────────────────────────
+            # -- 1) EVENT LOOP ----------------------------------------
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -653,7 +656,7 @@ the company makes on each share of stock."""
 
                 mpos = pygame.mouse.get_pos()
 
-                # ── MENU Input ───────────────────────────────────────
+                # -- MENU Input ---------------------------------------
                 if self.state == "MENU":
                     if event.type == pygame.MOUSEBUTTONDOWN:
                         if self.play_btn.checkForInput(mpos):
@@ -663,7 +666,7 @@ the company makes on each share of stock."""
                             pygame.quit()
                             sys.exit()
 
-                # ── TUTORIAL Input ─────────────────────────────────
+                # -- TUTORIAL Input ---------------------------------
                 elif self.state == "TUTORIAL":
                     if event.type == pygame.MOUSEBUTTONDOWN and self.next_tut_btn.checkForInput(mpos):
                         self.tutorial_idx += 1
@@ -672,7 +675,7 @@ the company makes on each share of stock."""
                             self.state      = "GAME"
                     continue
 
-                # ── ENDGAME Input ───────────────────────────────────
+                # -- ENDGAME Input -----------------------------------
                 elif self.state == "ENDGAME":
                     # name‑entry
                     if self.entering_name and event.type == pygame.KEYDOWN:
@@ -702,7 +705,7 @@ the company makes on each share of stock."""
                         self.restart_game()
                         return
 
-                # ── GAME Input ───────────────────────────────────────
+                # -- GAME Input ---------------------------------------
                 else:
                     # pressing G takes you to the end‐game / name‐entry screen
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_g:
@@ -832,7 +835,7 @@ the company makes on each share of stock."""
                             self.tutorial_idx = 0
                             self.state        = "TUTORIAL"
 
-            # ── 2) DRAW & FLIP (outside of the event loop) ─────────────────
+            # -- 2) DRAW & FLIP (outside of the event loop) -----------------
             if   self.state == "MENU":
                 self.draw_menu()
             elif self.state == "TUTORIAL":
