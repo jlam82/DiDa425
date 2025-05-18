@@ -23,6 +23,7 @@ from button import Button
 
 abspath = os.path.abspath(__file__)
 dirname = os.path.dirname(abspath)
+os.chdir(dirname) # now the file path is set here no matter what
 
 high_scores = pd.read_csv("scores.csv")
 
